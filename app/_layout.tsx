@@ -48,12 +48,12 @@ export default function RootLayout() {
     const inAuthGroup = rootSegment === "(auth)";
 
     if (!session && !inAuthGroup) {
-      router.replace("/auth");
+      router.replace("/(auth)/auth");
       return;
     }
 
     if (session && inAuthGroup) {
-      router.replace("/today");
+      router.replace("/(tabs)/today");
     }
   }, [isLoadingSession, segments, session]);
 
@@ -75,7 +75,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <BottomSheetModalProvider>
           <Stack>
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)/auth" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="history/[date]" options={{ headerShown: false }} />
             <Stack.Screen
