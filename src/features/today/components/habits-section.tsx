@@ -24,12 +24,20 @@ export function HabitsSection({
   onToggleHabit,
   onAddHabit,
 }: HabitsSectionProps) {
+  const completedCount = habits.filter((habit) => completion[habit.id] ?? false).length;
+
   return (
     <SectionCard.Root>
       <SectionCard.Header>
         <SectionCard.Title>Habits</SectionCard.Title>
       </SectionCard.Header>
       <SectionCard.Body>
+        {completedCount === 0 ? (
+          <AppText variant="body" style={styles.emptyHint}>
+            No habits completed yet. Start with the easiest one.
+          </AppText>
+        ) : null}
+
         <View style={styles.grid}>
           {habits.map((habit) => {
             const isCompleted = completion[habit.id] ?? false;
@@ -87,6 +95,10 @@ export function HabitsSection({
 }
 
 const styles = StyleSheet.create({
+  emptyHint: {
+    color: "#92aca2",
+    fontSize: 14,
+  },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",

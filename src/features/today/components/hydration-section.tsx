@@ -1,5 +1,6 @@
+import { useEffect, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { SectionCard } from "@/src/features/today/components/section-card";
 import { AppText } from "@/src/ui/app-text";
 
@@ -18,6 +19,21 @@ export function HydrationSection({
   isMutating,
   onAddWater,
 }: HydrationSectionProps) {
+  const progressAnim = useRef(new Animated.Value(waterProgressPercent)).current;
+
+  useEffect(() => {
+    Animated.timing(progressAnim, {
+      toValue: waterProgressPercent,
+      duration: 220,
+      useNativeDriver: false,
+    }).start();
+  }, [progressAnim, waterProgressPercent]);
+
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 100],
+    outputRange: ["0%", "100%"],
+  });
+
   return (
     <SectionCard.Root>
       <SectionCard.Header>
@@ -63,6 +79,10 @@ export function HydrationSection({
               +500 ml
             </AppText>
           </Pressable>
+        </View>
+
+        <View style={styles.progressTrack}>
+          <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
         </View>
       </SectionCard.Body>
     </SectionCard.Root>
@@ -121,5 +141,16 @@ const styles = StyleSheet.create({
     color: "#7fc1ff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: "#1c3b39",
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: "#6cb0ff",
   },
 });

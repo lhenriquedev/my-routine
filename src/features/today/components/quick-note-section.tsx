@@ -33,6 +33,15 @@ export function QuickNoteSection({
         </View>
       </SectionCard.Header>
       <SectionCard.Body>
+        {savedNote.trim().length === 0 ? (
+          <View style={styles.emptyStateRow}>
+            <Ionicons name="bulb-outline" size={18} color="#f4d66e" />
+            <AppText variant="body" style={styles.emptyStateText}>
+              No notes yet. Add a quick observation.
+            </AppText>
+          </View>
+        ) : null}
+
         <TextInput
           testID="quick-note-input"
           value={draft}
@@ -81,6 +90,22 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     textAlignVertical: "top",
+  },
+  emptyStateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#4f4a24",
+    backgroundColor: "#2a2714",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  emptyStateText: {
+    flex: 1,
+    color: "#d8c889",
+    fontSize: 14,
   },
   hint: {
     flex: 1,

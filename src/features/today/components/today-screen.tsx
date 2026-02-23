@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { router } from "expo-router";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import {
   ActivityIndicator,
@@ -8,21 +9,26 @@ import {
   View,
 } from "react-native";
 import { AddHabitSheet } from "@/src/features/today/components/add-habit-sheet";
+import { ActionFeedbackToast } from "@/src/features/today/components/action-feedback-toast";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DayHeaderCard } from "@/src/features/today/components/day-header-card";
 import { HabitsSection } from "@/src/features/today/components/habits-section";
 import { HydrationSection } from "@/src/features/today/components/hydration-section";
 import { LogSymptomSheet } from "@/src/features/today/components/log-symptom-sheet";
+import { NextBestActionCard } from "@/src/features/today/components/next-best-action-card";
+import { QuickSummaryRow } from "@/src/features/today/components/quick-summary-row";
 import { QuickNoteSection } from "@/src/features/today/components/quick-note-section";
 import { ReviewDayCta } from "@/src/features/today/components/review-day-cta";
 import { SymptomsSection } from "@/src/features/today/components/symptoms-section";
+import { TodayTimelineSection } from "@/src/features/today/components/today-timeline-section";
 import { useTodayScreen } from "@/src/features/today/hooks/use-today-screen";
 import { AppText } from "@/src/ui/app-text";
 
 export function TodayScreen() {
   const symptomSheetModalRef = useRef<BottomSheetModal>(null);
   const habitSheetModalRef = useRef<BottomSheetModal>(null);
-  const { habits, entry, lastSymptom, vm, actions, ui } = useTodayScreen();
+  const { habits, entry, lastSymptom, vm, nextBestAction, quickSummary, timelineEvents, actions, ui } =
+    useTodayScreen();
 
   const openSymptomSheet = () => {
     symptomSheetModalRef.current?.present();
@@ -30,6 +36,33 @@ export function TodayScreen() {
 
   const openHabitSheet = () => {
     habitSheetModalRef.current?.present();
+  };
+
+  const handleNextBestAction = () => {
+    switch (nextBestAction.action) {
+      case "add_water":
+        actions.addWater(250);
+        break;
+      case "complete_habit":
+        if (nextBestAction.habitId) {
+          actions.toggleHabit(nextBestAction.habitId);
+          break;
+        }
+
+        openHabitSheet();
+        break;
+      case "log_symptom":
+        openSymptomSheet();
+        break;
+      case "add_note":
+        actions.setFeedbackMessage("Notes section is ready below.");
+        break;
+      case "go_review":
+        actions.goToReviewDay();
+        break;
+      default:
+        break;
+    }
   };
 
   if (ui.isLoading) {
@@ -52,6 +85,16 @@ export function TodayScreen() {
         contentContainerStyle={styles.content}
       >
         <DayHeaderCard vm={vm} />
+
+        <NextBestActionCard action={nextBestAction} onPress={handleNextBestAction} />
+
+        <QuickSummaryRow summary={quickSummary} />
+
+        <TodayTimelineSection
+          events={timelineEvents}
+          onPressPrimaryAction={handleNextBestAction}
+          onPressSeeMore={() => router.push("/(tabs)/history")}
+        />
 
         {ui.errorMessage ? (
           <Pressable onPress={actions.dismissError} style={styles.errorBanner}>
@@ -107,6 +150,8 @@ export function TodayScreen() {
         isSubmitting={ui.isAddingHabit}
         onSubmit={actions.addCustomHabit}
       />
+
+      {ui.feedbackMessage ? <ActionFeedbackToast message={ui.feedbackMessage} /> : null}
     </SafeAreaView>
   );
 }

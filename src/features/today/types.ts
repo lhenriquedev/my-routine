@@ -50,3 +50,34 @@ export interface TodayViewModel {
   waterProgressPercent: number;
   reviewCtaVariant: ReviewCtaVariant;
 }
+
+export type NextBestActionType =
+  | "add_water"
+  | "complete_habit"
+  | "log_symptom"
+  | "add_note"
+  | "go_review";
+
+export interface NextBestActionVM {
+  title: string;
+  subtitle: string;
+  buttonLabel: string;
+  action: NextBestActionType;
+  habitId?: string;
+}
+
+export interface QuickSummaryVM {
+  water: { current: number; goal: number };
+  habits: { completed: number; total: number };
+  symptoms: { count: number };
+}
+
+export type TimelineEventType = "water" | "habit" | "symptom" | "note";
+
+export interface TimelineEventVM {
+  id: string;
+  time: string;
+  icon: string;
+  label: string;
+  type: TimelineEventType;
+}

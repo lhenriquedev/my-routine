@@ -1,10 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { TODAY_HABITS } from "@/src/features/today/constants";
 import { useTodayMutations } from "@/src/features/today/hooks/use-today-mutations";
 import { useTodayQuery } from "@/src/features/today/hooks/use-today-query";
 import {
   getLocalDateKey,
+  selectNextBestAction,
+  selectQuickSummary,
+  selectTimelineEvents,
   selectTodayViewModel,
 } from "@/src/features/today/selectors/today-selectors";
 import {
@@ -22,12 +26,20 @@ interface LogSymptomInput {
 
 export function useTodayScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dateKey = useMemo(() => getLocalDateKey(new Date()), []);
   const todayQuery = useTodayQuery(dateKey);
   const mutations = useTodayMutations(dateKey);
 
   const entry = todayQuery.data ?? createDefaultTodayEntry(dateKey);
   const vm = selectTodayViewModel(entry, new Date());
+  const nextBestAction = useMemo(
+    () => selectNextBestAction(entry, new Date()),
+    [entry],
+  );
+  const quickSummary = useMemo(() => selectQuickSummary(entry), [entry]);
+  const timelineEvents = useMemo(() => selectTimelineEvents(entry), [entry]);
   const habits: HabitDefinition[] = useMemo(
     () => [...TODAY_HABITS, ...entry.customHabits],
     [entry.customHabits],
@@ -36,7 +48,30 @@ export function useTodayScreen() {
 
   const setMutationError = (error: Error) => {
     setErrorMessage(error.message || "Something went wrong.");
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   };
+
+  const showFeedback = (message: string) => {
+    if (feedbackTimeoutRef.current) {
+      clearTimeout(feedbackTimeoutRef.current);
+      feedbackTimeoutRef.current = null;
+    }
+
+    setFeedbackMessage(message);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    feedbackTimeoutRef.current = setTimeout(() => {
+      setFeedbackMessage(null);
+      feedbackTimeoutRef.current = null;
+    }, 1800);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const actions = {
     dismissError: () => setErrorMessage(null),
@@ -45,6 +80,7 @@ export function useTodayScreen() {
         { habitId },
         {
           onError: setMutationError,
+          onSuccess: () => showFeedback("Habit completed."),
         },
       );
     },
@@ -53,6 +89,7 @@ export function useTodayScreen() {
         { amountMl },
         {
           onError: setMutationError,
+          onSuccess: () => showFeedback(`+${amountMl} ml registered.`),
         },
       );
     },
@@ -60,6 +97,7 @@ export function useTodayScreen() {
       setErrorMessage(null);
       try {
         await mutations.addCustomHabitMutation.mutateAsync(input);
+        showFeedback("Habit added.");
       } catch (error) {
         const typedError =
           error instanceof Error ? error : new Error("Something went wrong.");
@@ -71,6 +109,7 @@ export function useTodayScreen() {
       setErrorMessage(null);
       try {
         await mutations.addSymptomPresetMutation.mutateAsync({ name });
+        showFeedback("Symptom preset added.");
       } catch (error) {
         const typedError =
           error instanceof Error ? error : new Error("Something went wrong.");
@@ -82,6 +121,7 @@ export function useTodayScreen() {
       setErrorMessage(null);
       try {
         await mutations.logSymptomDetailedMutation.mutateAsync(input);
+        showFeedback("Symptom saved.");
       } catch (error) {
         const typedError =
           error instanceof Error ? error : new Error("Something went wrong.");
@@ -94,8 +134,12 @@ export function useTodayScreen() {
         { note },
         {
           onError: setMutationError,
+          onSuccess: () => showFeedback("Note saved."),
         },
       );
+    },
+    setFeedbackMessage: (message: string) => {
+      showFeedback(message);
     },
     goToReviewDay: () => {
       router.push("/review-day");
@@ -107,6 +151,9 @@ export function useTodayScreen() {
     entry,
     lastSymptom,
     vm,
+    nextBestAction,
+    quickSummary,
+    timelineEvents,
     actions,
     ui: {
       isLoading: todayQuery.isLoading,
@@ -117,6 +164,7 @@ export function useTodayScreen() {
       isSavingSymptom: mutations.logSymptomDetailedMutation.isPending,
       isAddingSymptomPreset: mutations.addSymptomPresetMutation.isPending,
       errorMessage,
+      feedbackMessage,
     },
   };
 }

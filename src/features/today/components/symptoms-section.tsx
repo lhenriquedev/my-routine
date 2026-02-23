@@ -20,7 +20,7 @@ function SymptomsEmptyState({ onOpenLogSymptom }: SharedProps) {
         <Ionicons name="happy-outline" size={24} color="#6f8c82" />
       </View>
       <AppText variant="body" style={styles.emptyText}>
-        No symptoms logged yet today.
+        No symptoms today. Log if anything changes.
       </AppText>
       <Pressable
         testID="symptom-log-button"
