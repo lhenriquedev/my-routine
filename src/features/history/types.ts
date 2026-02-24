@@ -1,6 +1,13 @@
 import { SymptomLogEntry, TodayEntry } from "@/src/features/today/types";
 
-export type HistoryDayStatus = "in_progress" | "reviewed" | "logged";
+export type HistoryDayStatus = "reviewed" | "pending_review" | "no_data";
+export type HistoryPeriodDays = 7 | 30 | 90;
+export type HistoryCategoryFilter =
+  | "all"
+  | "hydration"
+  | "habits"
+  | "symptoms"
+  | "journal";
 
 export interface HistoryDaySummary {
   dateKey: string;
@@ -10,11 +17,14 @@ export interface HistoryDaySummary {
   waterMl: number;
   waterGoalMl: number;
   completedHabitsCount: number;
+  totalHabitsCount: number;
   completedHabitLabels: string[];
   symptomCount: number;
   topSymptoms: string[];
   quickNotePreview: string;
   lastEntryAt: string | null;
+  hasJournal: boolean;
+  hasAnyActivity: boolean;
 }
 
 export interface HistoryMonthSection {

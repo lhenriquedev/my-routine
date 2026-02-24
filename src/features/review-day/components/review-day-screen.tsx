@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Pressable,
@@ -45,7 +45,10 @@ function MetricMiniCard({
       <AppText variant="title" style={styles.miniCardValue}>
         {value}
       </AppText>
-      <AppText variant="label" style={[styles.miniCardFootnote, { color: footnoteColor }]}>
+      <AppText
+        variant="label"
+        style={[styles.miniCardFootnote, { color: footnoteColor }]}
+      >
         {footnote}
       </AppText>
     </View>
@@ -64,9 +67,17 @@ function formatLiters(valueMl: number): string {
 
 export function ReviewDayScreen() {
   const router = useRouter();
-  const dateKey = useMemo(() => getLocalDateKey(new Date()), []);
+  const params = useLocalSearchParams<{ date?: string }>();
+  const dateKey = useMemo(() => {
+    if (typeof params.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(params.date)) {
+      return params.date;
+    }
+
+    return getLocalDateKey(new Date());
+  }, [params.date]);
   const todayQuery = useTodayQuery(dateKey);
   const entry = todayQuery.data ?? createDefaultTodayEntry(dateKey);
+
   const completedHabitsCount = useMemo(
     () => Object.values(entry.habitsCompletion).filter(Boolean).length,
     [entry.habitsCompletion],
@@ -93,14 +104,13 @@ export function ReviewDayScreen() {
     waterProgressPercent >= 60;
 
   const reviewLabel = useMemo(() => {
-    const now = new Date();
-    const date = now.toLocaleDateString(undefined, {
+    const date = new Date(`${dateKey}T00:00:00`).toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
     });
 
     return `Review ${date}`;
-  }, []);
+  }, [dateKey]);
 
   const insightTitle = hasSolidMomentum
     ? "Great Momentum Today"
@@ -150,7 +160,10 @@ export function ReviewDayScreen() {
             onPress={() => todayQuery.refetch()}
             accessibilityRole="button"
             accessibilityLabel="Retry loading review"
-            style={({ pressed }) => [styles.retryButton, pressed ? styles.pressed : null]}
+            style={({ pressed }) => [
+              styles.retryButton,
+              pressed ? styles.pressed : null,
+            ]}
           >
             <AppText variant="button" style={styles.retryButtonText}>
               Retry
@@ -173,7 +186,10 @@ export function ReviewDayScreen() {
               accessibilityRole="button"
               accessibilityLabel="Close review"
               hitSlop={8}
-              style={({ pressed }) => [styles.iconButton, pressed ? styles.pressed : null]}
+              style={({ pressed }) => [
+                styles.iconButton,
+                pressed ? styles.pressed : null,
+              ]}
             >
               <Ionicons name="close" size={24} color="#9fb4ae" />
             </Pressable>
@@ -187,7 +203,10 @@ export function ReviewDayScreen() {
               accessibilityRole="button"
               accessibilityLabel="Edit today entries"
               hitSlop={8}
-              style={({ pressed }) => [styles.editButton, pressed ? styles.pressed : null]}
+              style={({ pressed }) => [
+                styles.editButton,
+                pressed ? styles.pressed : null,
+              ]}
             >
               <AppText variant="button" style={styles.editText}>
                 Edit
@@ -227,27 +246,27 @@ export function ReviewDayScreen() {
             </View>
 
             <View style={styles.miniGrid}>
-                <MetricMiniCard
-                  icon="medkit"
-                  iconColor="#ff6f6f"
-                  title="Symptoms"
-                  value={`${entry.symptomLogs.length} Logged`}
-                  footnote={latestSymptomText}
-                  footnoteColor={lastSymptom ? "#f36e6e" : "#9cb2aa"}
-                />
-                <MetricMiniCard
-                  icon="checkmark-circle"
-                  iconColor="#31e986"
-                  title="Habits"
-                  value={`${completedHabitsCount}/${totalHabitsCount}`}
-                  footnote={
-                    completedHabitsCount === totalHabitsCount
-                      ? "All complete"
-                      : "Progress tracked"
-                  }
-                  footnoteColor="#56db8f"
-                />
-              </View>
+              <MetricMiniCard
+                icon="medkit"
+                iconColor="#ff6f6f"
+                title="Symptoms"
+                value={`${entry.symptomLogs.length} Logged`}
+                footnote={latestSymptomText}
+                footnoteColor={lastSymptom ? "#f36e6e" : "#9cb2aa"}
+              />
+              <MetricMiniCard
+                icon="checkmark-circle"
+                iconColor="#31e986"
+                title="Habits"
+                value={`${completedHabitsCount}/${totalHabitsCount}`}
+                footnote={
+                  completedHabitsCount === totalHabitsCount
+                    ? "All complete"
+                    : "Progress tracked"
+                }
+                footnoteColor="#56db8f"
+              />
+            </View>
 
             <View style={styles.insightCard}>
               <View style={styles.insightBadgeRow}>
@@ -269,14 +288,17 @@ export function ReviewDayScreen() {
 
               <View style={styles.insightFooter}>
                 <AppText variant="meta" style={styles.insightMeta}>
-                  Based on today&apos;s entries
+                  Based on this day&apos;s entries
                 </AppText>
                 <Pressable
                   onPress={goToTodayForEdit}
                   accessibilityRole="button"
                   accessibilityLabel="Open today to adjust entries"
                   hitSlop={8}
-                  style={({ pressed }) => [styles.insightLink, pressed ? styles.pressed : null]}
+                  style={({ pressed }) => [
+                    styles.insightLink,
+                    pressed ? styles.pressed : null,
+                  ]}
                 >
                   <AppText variant="button" style={styles.insightLinkText}>
                     Adjust entries
@@ -297,7 +319,8 @@ export function ReviewDayScreen() {
                 {notePreview ? "Today note" : "Reflection"}
               </AppText>
               <AppText variant="body" style={styles.quoteText}>
-                {notePreview || "Take one minute tonight to write how your body felt today."}
+                {notePreview ||
+                  "Take one minute tonight to write how your body felt today."}
               </AppText>
             </View>
           </ScrollView>
@@ -307,7 +330,10 @@ export function ReviewDayScreen() {
               onPress={goBackToToday}
               accessibilityRole="button"
               accessibilityLabel="Finish day"
-              style={({ pressed }) => [styles.finishButton, pressed ? styles.finishPressed : null]}
+              style={({ pressed }) => [
+                styles.finishButton,
+                pressed ? styles.finishPressed : null,
+              ]}
             >
               <Ionicons name="checkmark" size={22} color="#033118" />
               <AppText variant="button" style={styles.finishText}>
@@ -459,7 +485,7 @@ const styles = StyleSheet.create({
   },
   highlightValue: {
     color: "#edf5f1",
-    fontSize: 40,
+    fontSize: 32,
     lineHeight: 44,
     fontWeight: "700",
   },
@@ -553,7 +579,7 @@ const styles = StyleSheet.create({
   },
   insightTitle: {
     color: "#eef6f2",
-    fontSize: 36,
+    fontSize: 24,
     lineHeight: 40,
     fontWeight: "700",
   },

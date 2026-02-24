@@ -1,4 +1,4 @@
-import { TODAY_HABITS } from "@/src/features/today/constants";
+import { DEFAULT_WATER_GOAL_ML, TODAY_HABITS } from "@/src/features/today/constants";
 import { todayService } from "@/src/features/today/services/today-service";
 import { SymptomLogEntry, TodayEntry } from "@/src/features/today/types";
 import {
@@ -17,6 +17,11 @@ interface DailyEntryRow {
   water_goal_ml: number;
   quick_note: string;
   last_entry_at: string | null;
+}
+
+interface DayRangePoint {
+  dateKey: string;
+  date: Date;
 }
 
 interface SymptomLogRow {
@@ -71,6 +76,25 @@ function getTodayDateKey(now: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function shiftDate(baseDate: Date, deltaDays: number): Date {
+  const next = new Date(baseDate);
+  next.setDate(next.getDate() + deltaDays);
+  return next;
+}
+
+function buildRangePoints(days: number, now: Date): DayRangePoint[] {
+  const safeDays = Math.max(1, days);
+  const startDate = shiftDate(new Date(now.getFullYear(), now.getMonth(), now.getDate()), -(safeDays - 1));
+
+  return Array.from({ length: safeDays }, (_, index) => {
+    const date = shiftDate(startDate, index);
+    return {
+      date,
+      dateKey: getTodayDateKey(date),
+    };
+  });
+}
+
 function countCompletedHabits(entry: TodayEntry): number {
   return Object.values(entry.habitsCompletion).filter(Boolean).length;
 }
@@ -123,54 +147,64 @@ function buildInsight(entry: TodayEntry): Pick<HistoryDetailViewModel, "insightT
 }
 
 export const historyService = {
-  async listDays(days: number = 60): Promise<HistoryDaySummary[]> {
+  async listDays(days: number = 30): Promise<HistoryDaySummary[]> {
     const userId = await requireUserId();
     const now = new Date();
-    const todayDateKey = getTodayDateKey(now);
+    const rangePoints = buildRangePoints(days, now);
+    const startDateKey = rangePoints[0]?.dateKey;
+    const endDateKey = rangePoints[rangePoints.length - 1]?.dateKey;
+
+    if (!startDateKey || !endDateKey) {
+      return [];
+    }
 
     const { data: entriesData, error: entriesError } = await supabase
       .from("daily_entries")
       .select("id,entry_date,water_ml,water_goal_ml,quick_note,last_entry_at")
       .eq("user_id", userId)
+      .gte("entry_date", startDateKey)
+      .lte("entry_date", endDateKey)
       .order("entry_date", { ascending: false })
-      .limit(days);
+      .limit(Math.max(days * 2, 100));
 
     assertSupabaseError(entriesError);
 
     const entries = (entriesData ?? []) as DailyEntryRow[];
     const entryIds = entries.map((entry) => entry.id);
 
-    if (entryIds.length === 0) {
-      return [];
-    }
+    const [symptomLogsResult, systemHabitsResult, customHabitsResult, customHabitLabelsResult] = await Promise.all([
+      entryIds.length > 0
+        ? supabase
+            .from("symptom_logs")
+            .select("entry_id,symptom_name,intensity,note,logged_at")
+            .eq("user_id", userId)
+            .in("entry_id", entryIds)
+            .order("logged_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
+      entryIds.length > 0
+        ? supabase
+            .from("daily_system_habit_status")
+            .select("entry_id,habit_id,is_completed")
+            .eq("user_id", userId)
+            .in("entry_id", entryIds)
+        : Promise.resolve({ data: [], error: null }),
+      entryIds.length > 0
+        ? supabase
+            .from("daily_custom_habit_status")
+            .select("entry_id,custom_habit_id,is_completed")
+            .eq("user_id", userId)
+            .in("entry_id", entryIds)
+        : Promise.resolve({ data: [], error: null }),
+      supabase
+        .from("custom_habits")
+        .select("id,label")
+        .eq("user_id", userId)
+        .is("archived_at", null),
+    ]);
 
-    const [symptomLogsResult, systemHabitsResult, customHabitsResult, customHabitLabelsResult] =
-      await Promise.all([
-        supabase
-          .from("symptom_logs")
-          .select("entry_id,symptom_name,intensity,note,logged_at")
-          .eq("user_id", userId)
-          .in("entry_id", entryIds)
-          .order("logged_at", { ascending: false }),
-        supabase
-          .from("daily_system_habit_status")
-          .select("entry_id,habit_id,is_completed")
-          .eq("user_id", userId)
-          .in("entry_id", entryIds),
-        supabase
-          .from("daily_custom_habit_status")
-          .select("entry_id,custom_habit_id,is_completed")
-          .eq("user_id", userId)
-          .in("entry_id", entryIds),
-        supabase
-          .from("custom_habits")
-          .select("id,label")
-          .eq("user_id", userId),
-      ]);
-
-    assertSupabaseError(symptomLogsResult.error);
-    assertSupabaseError(systemHabitsResult.error);
-    assertSupabaseError(customHabitsResult.error);
+    assertSupabaseError(symptomLogsResult.error as { message: string } | null);
+    assertSupabaseError(systemHabitsResult.error as { message: string } | null);
+    assertSupabaseError(customHabitsResult.error as { message: string } | null);
     assertSupabaseError(customHabitLabelsResult.error);
 
     const symptomLogs = (symptomLogsResult.data ?? []) as SymptomLogRow[];
@@ -178,6 +212,8 @@ export const historyService = {
     const customStatuses = (customHabitsResult.data ?? []) as CustomHabitStatusRow[];
     const customHabits = (customHabitLabelsResult.data ?? []) as CustomHabitRow[];
     const customHabitLabelById = new Map(customHabits.map((habit) => [habit.id, habit.label]));
+    const entryByDateKey = new Map(entries.map((entry) => [entry.entry_date, entry]));
+    const totalHabitsCount = TODAY_HABITS.length + customHabits.length;
 
     const symptomsByEntryId = new Map<string, SymptomLogRow[]>();
     symptomLogs.forEach((log) => {
@@ -222,8 +258,30 @@ export const historyService = {
       }
     });
 
-    return entries
-      .map((entry): HistoryDaySummary => {
+    const summaries = rangePoints
+      .map((point): HistoryDaySummary => {
+        const entry = entryByDateKey.get(point.dateKey);
+
+        if (!entry) {
+          return {
+            dateKey: point.dateKey,
+            dateLabel: formatDayLabel(point.dateKey),
+            relativeLabel: getRelativeDateLabel(point.dateKey, now),
+            status: "no_data",
+            waterMl: 0,
+            waterGoalMl: DEFAULT_WATER_GOAL_ML,
+            completedHabitsCount: 0,
+            totalHabitsCount,
+            completedHabitLabels: [],
+            symptomCount: 0,
+            topSymptoms: [],
+            quickNotePreview: "",
+            lastEntryAt: null,
+            hasJournal: false,
+            hasAnyActivity: false,
+          };
+        }
+
         const entrySymptoms = symptomsByEntryId.get(entry.id) ?? [];
         const symptomNames = Array.from(
           new Set(entrySymptoms.map((symptom) => symptom.symptom_name)),
@@ -238,16 +296,15 @@ export const historyService = {
           entrySymptoms.length > 0 ||
           entry.quick_note.trim().length > 0 ||
           entry.last_entry_at !== null;
-        const isToday = entry.entry_date === todayDateKey;
-
         let status: HistoryDaySummary["status"];
+        const completionRatio = totalHabitsCount > 0 ? completedHabits.length / totalHabitsCount : 0;
 
-        if (isToday) {
-          status = "in_progress";
-        } else if (entry.water_goal_ml > 0 && entry.water_ml >= entry.water_goal_ml && completedHabits.length > 0) {
+        if (!hasAnyActivity) {
+          status = "no_data";
+        } else if (entry.water_goal_ml > 0 && entry.water_ml >= entry.water_goal_ml && completionRatio >= 0.5) {
           status = "reviewed";
         } else {
-          status = hasAnyActivity ? "logged" : "in_progress";
+          status = "pending_review";
         }
 
         return {
@@ -258,21 +315,19 @@ export const historyService = {
           waterMl: entry.water_ml,
           waterGoalMl: entry.water_goal_ml,
           completedHabitsCount: completedHabits.length,
+          totalHabitsCount,
           completedHabitLabels: completedHabits.slice(0, 2),
           symptomCount: entrySymptoms.length,
           topSymptoms: symptomNames.slice(0, 2),
           quickNotePreview: entry.quick_note.trim(),
           lastEntryAt: entry.last_entry_at,
+          hasJournal: entry.quick_note.trim().length > 0,
+          hasAnyActivity,
         };
       })
-      .filter((entry) =>
-        entry.relativeLabel === "Today"
-          ? true
-          : entry.completedHabitsCount > 0 ||
-            entry.symptomCount > 0 ||
-            entry.waterMl > 0 ||
-            entry.quickNotePreview.length > 0,
-      );
+      .sort((a, b) => (a.dateKey > b.dateKey ? -1 : 1));
+
+    return summaries;
   },
 
   async getDayDetails(dateKey: string): Promise<HistoryDetailViewModel> {

@@ -77,7 +77,10 @@ export default function RootLayout() {
           <Stack>
             <Stack.Screen name="(auth)/auth" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="history/[date]" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="history/[date]"
+              options={{ headerShown: false }}
+            />
             <Stack.Screen
               name="review-day"
               options={{ headerShown: false, presentation: "modal" }}

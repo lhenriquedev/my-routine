@@ -53,7 +53,10 @@ export function HistoryDayDetailsScreen() {
           </AppText>
           <Pressable
             onPress={() => historyDayQuery.refetch()}
-            style={({ pressed }) => [styles.primaryButton, pressed ? styles.pressed : null]}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              pressed ? styles.pressed : null,
+            ]}
           >
             <AppText variant="button" style={styles.primaryButtonText}>
               Retry
@@ -73,7 +76,10 @@ export function HistoryDayDetailsScreen() {
           onPress={() => router.back()}
           accessibilityRole="button"
           accessibilityLabel="Go back"
-          style={({ pressed }) => [styles.iconButton, pressed ? styles.pressed : null]}
+          style={({ pressed }) => [
+            styles.iconButton,
+            pressed ? styles.pressed : null,
+          ]}
         >
           <Ionicons name="chevron-back" size={24} color="#deece5" />
         </Pressable>
@@ -85,7 +91,10 @@ export function HistoryDayDetailsScreen() {
         <View style={styles.iconButton} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.metricsGrid}>
           <View style={styles.metricCard}>
             <View style={styles.metricLabelRow}>
@@ -296,7 +305,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: "#e8f2ee",
-    fontSize: 31,
+    fontSize: 24,
     lineHeight: 34,
     fontWeight: "700",
   },

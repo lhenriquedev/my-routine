@@ -10,7 +10,9 @@ import { AppText } from "@/src/ui/app-text";
 function toTitleCase(value: string): string {
   return value
     .split(/\s+/)
-    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1).toLowerCase())
+    .map(
+      (chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1).toLowerCase(),
+    )
     .join(" ");
 }
 
@@ -223,13 +225,13 @@ const styles = StyleSheet.create({
   greetingPrefix: {
     marginTop: 6,
     color: "#d4dfda",
-    fontSize: 28,
+    fontSize: 16,
     lineHeight: 32,
     fontWeight: "600",
   },
   greetingName: {
     color: "#2df07e",
-    fontSize: 28,
+    fontSize: 20,
     lineHeight: 32,
     fontWeight: "700",
   },
